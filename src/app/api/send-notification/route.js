@@ -1,41 +1,64 @@
 import { NextResponse } from "next/server";
 import admin from "firebase-admin";
 
-// Initialize Firebase Admin only once
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      }),
-    });
-    console.log("✅ Firebase Admin initialized");
-  } catch (error) {
-    console.error("❌ Firebase Admin init error:", error);
+function initFirebaseAdmin() {
+  if (admin.apps.length > 0) return;
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Missing Firebase credentials in env vars. " +
+      "Check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY."
+    );
   }
+
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
+  });
+
+  console.log("✅ Firebase Admin initialized");
 }
 
 export async function POST(req) {
   try {
-    const { token, title, body, imageUrl } = await req.json();
+    initFirebaseAdmin();
+  } catch (err) {
+    console.error("❌ Firebase Admin init error:", err.message);
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const { token, title, body: messageBody, imageUrl } = body;
 
     if (!token) {
-      return NextResponse.json({ error: "FCM token is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "FCM token is required" },
+        { status: 400 }
+      );
     }
 
     const message = {
       token,
       notification: {
-        title: title || "Hello from Next.js API 🚀",
-        body: body || "This push works even if app is closed!",
+        title: title || "Notification",
+        body: messageBody || "",
         imageUrl: imageUrl || undefined,
       },
       android: {
         priority: "high",
         notification: {
-          channelId: "high_importance_channel", // match Flutter's channel id
+          channelId: "high_importance_channel",
           imageUrl: imageUrl || undefined,
         },
       },
@@ -44,8 +67,8 @@ export async function POST(req) {
         payload: {
           aps: {
             alert: {
-              title: title || "Hello from Next.js API 🚀",
-              body: body || "This push works even if app is closed!",
+              title: title || "Notification",
+              body: messageBody || "",
             },
             sound: "default",
           },
@@ -54,9 +77,14 @@ export async function POST(req) {
     };
 
     const response = await admin.messaging().send(message);
+    console.log("📤 Notification sent:", response);
+
     return NextResponse.json({ success: true, response });
   } catch (err) {
-    console.error("❌ Notification send error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("❌ Notification send error:", err.message);
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    );
   }
 }
