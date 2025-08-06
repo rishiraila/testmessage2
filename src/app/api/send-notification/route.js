@@ -17,7 +17,7 @@ const FALLBACK_PRIVATE_KEY =
    ------------------------- */
 const STATIC_TITLE = "📢 Special Update!";
 const STATIC_BODY = "We have an update for you — open the app to learn more.";
-const STATIC_IMAGE_URL = "https://your-domain.com/static/offer-banner.jpg"; // <-- change me
+const STATIC_IMAGE_URL = "https://cornflowerblue-shrew-651334.hostingersite.com/wp-content/uploads/2025/08/contactform.webp"; // <-- change me
 
 /* -------------------------
    Firebase Admin init (uses env vars if present, otherwise fallback)
